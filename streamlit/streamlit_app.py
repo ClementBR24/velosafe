@@ -1,13 +1,13 @@
 """Streamlit application"""
 import datetime
 import json
-
+import pickle as pk
 import numpy as np
 import pandas as pd
 import plotly.express as px
 
 import streamlit as st
-from velosafe.models import load_model
+
 
 st.set_page_config(page_title="Accidentologie des vélos en France", page_icon="🔥")
 # Features of the regression model
@@ -48,10 +48,16 @@ def viz_page():
 
     selection = st.selectbox(
         "Sélectionner la donnée à afficher",
-        options=["Accidents de vélos", "Pistes cyclables", "Accidents de vélos / Km de piste cyclables"],
+        options=[
+            "Accidents de vélos",
+            "Pistes cyclables",
+            "Accidents de vélos / Km de piste cyclables",
+        ],
     )
     data1 = pd.read_csv("./streamlit/resources/nb_accidents_velos2021_dep.csv")
-    data2 = pd.read_csv("./streamlit/resources/communes_with_bike_length_prepared_by_insee_com_prepared.csv")
+    data2 = pd.read_csv(
+        "./streamlit/resources/communes_with_bike_length_prepared_by_insee_com_prepared.csv"
+    )
     data3 = pd.read_csv("./streamlit/resources/comparaison_ratio.csv")
     with open("./streamlit/resources/departements.geojson", "r") as file:
         geodata = json.load(file)
@@ -84,7 +90,9 @@ def analyse_page():
         st.image("./streamlit/resources/Undraw.png")
 
     st.subheader("1. Le type de route")
-    df_analyse = pd.read_csv("./streamlit/resources/no_missing_values_data_viz_velo 2.csv", sep=",")
+    df_analyse = pd.read_csv(
+        "./streamlit/resources/no_missing_values_data_viz_velo 2.csv", sep=","
+    )
 
     # Analyse type de la route
     df_analyse["catr"].replace(
@@ -159,7 +167,9 @@ def analyse_page():
 
     st.subheader("4. Le sexe du cycliste")
 
-    df_analyse["sexe"].replace({-1: "Non renseigné", 1: "Masculin", 2: "Féminin"}, inplace=True)
+    df_analyse["sexe"].replace(
+        {-1: "Non renseigné", 1: "Masculin", 2: "Féminin"}, inplace=True
+    )
     acc_by_sex = df_analyse[["Num_Acc", "sexe"]].groupby(by=["sexe"]).count()
     acc_by_sex["percent"] = (acc_by_sex["Num_Acc"] / acc_by_sex["Num_Acc"].sum()) * 100
 
@@ -177,7 +187,9 @@ def analyse_page():
 
     st.subheader("5. La vitesse maximale autorisée")
     # Analyse de la vitesse max
-    df_analyse["vma"].replace([-1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15], value=20, inplace=True)
+    df_analyse["vma"].replace(
+        [-1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15], value=20, inplace=True
+    )
     df_analyse["vma"].replace([110, 120, 180, 300, 500, 600], value=90, inplace=True)
     acc_by_vma = df_analyse[["Num_Acc", "vma"]].groupby(by=["vma"]).count()
     acc_by_vma["percent"] = (acc_by_vma["Num_Acc"] / acc_by_vma["Num_Acc"].sum()) * 100
@@ -196,10 +208,17 @@ def analyse_page():
     df_analyse["casque"] = 0
 
     for i in range(len(df_analyse)):
-        if df_analyse.secu1[i] == 2 or df_analyse.secu2[i] == 2 or df_analyse.secu3[i] == 2:
+        if (
+            df_analyse.secu1[i] == 2
+            or df_analyse.secu2[i] == 2
+            or df_analyse.secu3[i] == 2
+        ):
             df_analyse.casque[i] = 1
     df_analyse = df_analyse[df_analyse.grav != -1]
-    df_analyse.grav.replace({1: "Indemne", 2: "Tué", 3: "Blessé hospitalisé", 4: "Blessé léger"}, inplace=True)
+    df_analyse.grav.replace(
+        {1: "Indemne", 2: "Tué", 3: "Blessé hospitalisé", 4: "Blessé léger"},
+        inplace=True,
+    )
     df_analyse.casque.replace({0: "Sans casque", 1: "Avec casque"}, inplace=True)
     df_analyse["Nombre"] = 1
     fig8 = plot_casque(df_analyse)
@@ -226,7 +245,9 @@ def analyse_page():
         inplace=True,
     )
     acc_by_trajet = df_analyse[["Num_Acc", "trajet"]].groupby(by=["trajet"]).count()
-    acc_by_trajet["percent"] = (acc_by_trajet["Num_Acc"] / acc_by_trajet["Num_Acc"].sum()) * 100
+    acc_by_trajet["percent"] = (
+        acc_by_trajet["Num_Acc"] / acc_by_trajet["Num_Acc"].sum()
+    ) * 100
 
     fig9 = plot_trajet(acc_by_trajet)
     st.plotly_chart(fig9, use_container_width=True)
@@ -244,7 +265,8 @@ def analyse_page():
 def simulation_page():
     st.write("# Simulation de l'impact de construction de pistes cyclables")
     # Load model
-    model = load_model("./streamlit/resources/model.pkl")
+    with open("./streamlit/resources/model.pkl", "rb") as file:
+        model = pk.load(file)
     # Load train data
     train_data = pd.read_csv("./streamlit/resources/training_data.csv")
     code_comm = st.text_input("Code commune")
@@ -274,7 +296,10 @@ def simulation_page():
                         st.metric(
                             label="Nombre d'accidents",
                             value=str(nb_accidents_after[0]),
-                            delta=str(nb_accidents_after[0] - nb_accidents_before.values[0]) + "accidents",
+                            delta=str(
+                                nb_accidents_after[0] - nb_accidents_before.values[0]
+                            )
+                            + "accidents",
                         )
                 except ValueError:
                     st.error("Entrez un nombre flottant de kilomètres.")
@@ -310,7 +335,9 @@ def plot_france_map_accidents(data: pd.DataFrame, geodata: dict):
         )
     )
 
-    fig.update_traces(hovertemplate="Dep: %{location} <br>Nb accident: %{customdata[0]}")
+    fig.update_traces(
+        hovertemplate="Dep: %{location} <br>Nb accident: %{customdata[0]}"
+    )
     return fig
 
 
@@ -415,7 +442,10 @@ def plot_vitesse(data):
         data,
         x=data.index,
         y="percent",
-        labels={"vma": "Vitesse maximale autorisée (en km/h)", "percent": "Pourcentage d'accidents"},
+        labels={
+            "vma": "Vitesse maximale autorisée (en km/h)",
+            "percent": "Pourcentage d'accidents",
+        },
         title="Répartition des accidents selon la vitesse maximale autorisée",
     )
     fig.update_traces(marker_color="#B6E880")
@@ -451,7 +481,10 @@ def main():
     """Run the streamlit application."""
     with st.sidebar:
         st.write("# Navigation")
-        page = st.radio(label="", options=["Présentation du contexte", "Analyse des facteurs", "Simulation"])
+        page = st.radio(
+            label="",
+            options=["Présentation du contexte", "Analyse des facteurs", "Simulation"],
+        )
 
     if page == "Présentation du contexte":
         viz_page()
